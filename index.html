@@ -100,7 +100,12 @@
       position: relative;
       display: flex; align-items: center; justify-content: center;
     }
-    .cam-wrap canvas { width: 100% !important; height: 100% !important; object-fit: cover; display: block; }
+    .cam-wrap video {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover;
+      display: block;
+    }
     .cam-placeholder {
       display: flex; flex-direction: column; align-items: center; gap: 10px;
       color: var(--muted); font-size: 0.85rem;
@@ -362,6 +367,11 @@
         <div class="bar-track"><div class="bar-fill" id="bar-Neutral" style="background:#a3e6a3"></div></div>
         <span class="bar-pct" id="pct-Neutral">0%</span>
       </div>
+      <div class="bar-row">
+        <span class="bar-label">Surprise</span>
+        <div class="bar-track"><div class="bar-fill" id="bar-Surprise"></div></div>
+        <span class="bar-pct" id="pct-Surprise">0%</span>
+      </div>
     </div>
 
     <button class="start-btn" id="start-btn" onclick="init()">Start Detection</button>
@@ -391,22 +401,19 @@
 
   <!-- FOOTER -->
   <footer>
-    <span>Powered by Teachable Machine + TensorFlow.js</span>
+    <span>Powered by face-api.js</span>
     <span>Moodify — AI Mini Project</span>
   </footer>
 
   <!-- SCRIPTS -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+  <script defer src="https://unpkg.com/face-api.js@0.22.2/dist/face-api.min.js"></script>
   <script>
-    // ══════════════════════════════════════════════════
-    //  ⬇️  PASTE YOUR TEACHABLE MACHINE MODEL URL HERE
-    // ══════════════════════════════════════════════════
-    const MODEL_URL = "https://teachablemachine.withgoogle.com/models/XXXXXXXX/";
+    
 
     // ══════════════════════════════════════════════════
     //  PLAYLIST DATA — edit these to change links/names
     // ══════════════════════════════════════════════════
+
     const playlists = {
       Happy: {
         label: "Happy",
@@ -414,12 +421,12 @@
         spotify: {
           name: "Good Vibes Only",
           desc: "Feel-good hits to keep you smiling",
-          url: "https://open.spotify.com/playlist/37i9dQZF1DXdPec7aLTmlC"
+          url: "https://open.spotify.com/search/happy%20playlist"
         },
         youtube: {
           name: "Happy Hits 2024",
           desc: "Top upbeat tracks, curated for joy",
-          url: "https://www.youtube.com/playlist?list=PLDIoUOhQQPlXr63I44BFSpCy2PaFUhGM2"
+          url: "https://www.youtube.com/results?search_query=happy+songs+playlist"
         }
       },
       Sad: {
@@ -428,12 +435,26 @@
         spotify: {
           name: "Life is Beautiful",
           desc: "Emotional melodies for quiet moments",
-          url: "https://open.spotify.com/playlist/37i9dQZF1DX3YSRoSdA634"
+          url: "https://open.spotify.com/search/Sad%20playlist"
         },
         youtube: {
           name: "Sad Songs Playlist",
           desc: "Let it out — songs that understand you",
-          url: "https://www.youtube.com/playlist?list=PLDIoUOhQQPlXuB-9EvhEGVFwVFqBBqcEA"
+          url: "https://www.youtube.com/results?search_query=Sad+songs+playlist"
+        }
+      },
+      Surprise: {
+        label: "Surprise",
+        theme: "theme-happy",
+        spotify: {
+          name: "Unexpected Vibes",
+          desc: "Music for sudden moments 😲",
+          url: "https://open.spotify.com/search/surprise%20playlist"
+        },
+        youtube: {
+          name: "Surprise Energy Mix",
+          desc: "Unpredictable beats & vibes",
+          url: "https://www.youtube.com/results?search_query=Surprise+songs+playlist"
         }
       },
       Angry: {
@@ -442,12 +463,12 @@
         spotify: {
           name: "Beast Mode",
           desc: "Intense tracks to channel your energy",
-          url: "https://open.spotify.com/playlist/37i9dQZF1DX76Wlfdnj7AP"
+          url: "https://open.spotify.com/search/Angry%20playlist"
         },
         youtube: {
           name: "Workout Motivation",
           desc: "Turn that fire into fuel",
-          url: "https://www.youtube.com/playlist?list=PLDIoUOhQQPlX92mHMTyd_WLsUCM2JBAZN"
+          url: "https://www.youtube.com/results?search_query=Angry+songs+playlist"
         }
       },
       Neutral: {
@@ -456,12 +477,12 @@
         spotify: {
           name: "Chill Hits",
           desc: "Easy listening for a calm state of mind",
-          url: "https://open.spotify.com/playlist/37i9dQZF1DX4WYpdgoIcn6"
+          url: "https://open.spotify.com/search/Neutral%20playlist"
         },
         youtube: {
           name: "Lofi Hip Hop Radio",
           desc: "Background beats to relax or focus",
-          url: "https://www.youtube.com/watch?v=jfKfPfyJRdk"
+          url: "https://www.youtube.com/results?search_query=Neutral+songs+playlist"
         }
       }
     };
@@ -469,118 +490,162 @@
     // ══════════════════════════════════════════════════
     //  APP LOGIC
     // ══════════════════════════════════════════════════
-    let model, webcam, maxPredictions;
+    let video;
     let currentMood = null;
 
     const MOODS = ["Happy", "Sad", "Angry", "Neutral"];
 
     async function init() {
-      const btn = document.getElementById("start-btn");
-      btn.disabled = true;
-      btn.textContent = "Loading model...";
+    const btn = document.getElementById("start-btn");
+    btn.disabled = true;
+    btn.textContent = "Loading AI...";
 
-      setStatus("Loading...", false);
+    setStatus("Loading...", false);
+
+      // Create video element
+      video = document.createElement("video");
+      video.width = 340;
+      video.height = 340;
+      video.autoplay = true;
+      video.muted = true;
 
       try {
-        model = await tmImage.load(MODEL_URL + "model.json", MODEL_URL + "metadata.json");
-        maxPredictions = model.getTotalClasses();
+        await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri('./models'),
+        faceapi.nets.faceExpressionNet.loadFromUri('./models')
+      ]);
 
-        webcam = new tmImage.Webcam(340, 340, true);
-        await webcam.setup();
-        await webcam.play();
 
-        document.getElementById("cam-placeholder").style.display = "none";
-        document.getElementById("webcam-container").appendChild(webcam.canvas);
-        document.getElementById("scan-line").style.display = "block";
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
 
-        btn.style.display = "none";
-        setStatus("Live", true);
-        window.requestAnimationFrame(loop);
+      document.getElementById("cam-placeholder").style.display = "none";
+      document.getElementById("webcam-container").appendChild(video);
+      document.getElementById("scan-line").style.display = "block";
+
+      btn.style.display = "none";
+      setStatus("Live", true);
+
+      video.addEventListener("play", detectLoop);
+
+
       } catch (e) {
         btn.disabled = false;
         btn.textContent = "Retry";
-        setStatus("Error — check model URL", false);
+      setStatus("Error loading AI", false);
       }
     }
 
-    async function loop() {
-      webcam.update();
-      await predict();
-      requestAnimationFrame(loop);
+      async function detectLoop() {
+        setInterval(async () => {
+        const detections = await faceapi.detectAllFaces(
+          video,
+          new faceapi.TinyFaceDetectorOptions()
+          ).withFaceExpressions();
+
+if (detections.length > 0) {
+  const expressions = detections[0].expressions;
+
+  // Convert to your app labels
+  const mapped = {
+  Happy: expressions.happy,
+  Sad: expressions.sad,
+  Angry: expressions.angry,
+  Neutral: expressions.neutral,
+  Surprise: expressions.surprised
+};
+
+  const mood = Object.keys(mapped).reduce((a, b) =>
+    mapped[a] > mapped[b] ? a : b
+  );
+
+  const conf = Math.round(mapped[mood] * 100);
+
+  // Update bars
+  Object.keys(mapped).forEach(name => {
+    const pct = Math.round(mapped[name] * 100);
+    const fill = document.getElementById("bar-" + name);
+    const pctEl = document.getElementById("pct-" + name);
+
+    if (fill) {
+      fill.style.width = pct + "%";
+      fill.classList.toggle("active", name === mood);
     }
+    if (pctEl) pctEl.textContent = pct + "%";
+  });
 
-    async function predict() {
-      const preds = await model.predict(webcam.canvas);
-      const best = preds.reduce((a, b) => a.probability > b.probability ? a : b);
-      const mood = best.className;
-      const conf = Math.round(best.probability * 100);
+  // Update UI
+  document.getElementById("mood-name").textContent = mood;
+  document.getElementById("mood-conf").textContent = `${conf}% confidence`;
 
-      // Update bars
-      preds.forEach(p => {
-        const name = p.className;
-        const pct = Math.round(p.probability * 100);
-        const fill = document.getElementById("bar-" + name);
-        const pctEl = document.getElementById("pct-" + name);
-        if (fill) { fill.style.width = pct + "%"; fill.classList.toggle("active", name === mood); }
-        if (pctEl) pctEl.textContent = pct + "%";
-      });
+  const hero = document.getElementById("mood-hero");
+  const panel = document.getElementById("right-panel");
 
-      // Update mood display
-      document.getElementById("mood-name").textContent = mood;
-      document.getElementById("mood-conf").textContent = `${conf}% confidence`;
+  ["theme-happy","theme-sad","theme-angry","theme-neutral"].forEach(t => {
+    hero.classList.remove(t);
+    panel.classList.remove(t);
+  });
 
-      // Apply theme
-      const hero = document.getElementById("mood-hero");
-      const panel = document.getElementById("right-panel");
-      ["theme-happy","theme-sad","theme-angry","theme-neutral"].forEach(t => {
-        hero.classList.remove(t); panel.classList.remove(t);
-      });
-      const theme = playlists[mood]?.theme;
-      if (theme) { hero.classList.add(theme); panel.classList.add(theme); }
+  const theme = playlists[mood]?.theme;
+  if (theme) {
+    hero.classList.add(theme);
+    panel.classList.add(theme);
+  }
 
-      // Update playlists only on mood change
-      if (mood !== currentMood) {
-        currentMood = mood;
-        renderPlaylists(mood);
-      }
-    }
+  if (mood !== currentMood) {
+    currentMood = mood;
+    renderPlaylists(mood);
+  }
+  }
+  }, 1000);
+} 
 
-    function renderPlaylists(mood) {
-      const data = playlists[mood];
-      if (!data) return;
-      const grid = document.getElementById("playlist-grid");
+  function setStatus(text, live) {
+    document.getElementById("status-text").textContent = text;
+    document.getElementById("status-dot").classList.toggle("live", live);
+  }
+  
+  async function getSpotifyPlaylist(mood) {
+      const res = await fetch(`/api/spotify?mood=${mood}`);
+      const data = await res.json();
 
-      grid.innerHTML = `
-        <a class="pl-card" href="${data.spotify.url}" target="_blank" rel="noopener">
-          <div class="pl-icon spotify">
-            <svg viewBox="0 0 24 24" fill="#1DB954"><circle cx="12" cy="12" r="12" fill="#1DB954"/><path d="M8 15.5c2.6-1.6 5.8-2 8.5-1" stroke="#fff" stroke-width="1.5" stroke-linecap="round" fill="none"/><path d="M7 12.5c3.2-2 7.2-2.4 10.5-1.2" stroke="#fff" stroke-width="1.5" stroke-linecap="round" fill="none"/><path d="M6.5 9.5c3.8-2.3 8.6-2.8 12.5-1.3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>
-          </div>
-          <div class="pl-info">
-            <div class="pl-platform">Spotify</div>
-            <div class="pl-name">${data.spotify.name}</div>
-            <div class="pl-desc">${data.spotify.desc}</div>
-          </div>
-          <div class="pl-arrow">→</div>
-        </a>
+      return data.playlists?.items?.[0];
+  }
+  <!---- ONLY CHANGE IS INSIDE renderPlaylists FUNCTION --->
 
-        <a class="pl-card" href="${data.youtube.url}" target="_blank" rel="noopener">
-          <div class="pl-icon youtube">
-            <svg viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="12" r="12" fill="#FF0000"/><polygon points="10,8 17,12 10,16" fill="#fff"/></svg>
-          </div>
-          <div class="pl-info">
-            <div class="pl-platform">YouTube Music</div>
-            <div class="pl-name">${data.youtube.name}</div>
-            <div class="pl-desc">${data.youtube.desc}</div>
-          </div>
-          <div class="pl-arrow">→</div>
-        </a>
-      `;
-    }
+  async function renderPlaylists(mood) {
+  const grid = document.getElementById("playlist-grid");
 
-    function setStatus(text, live) {
-      document.getElementById("status-text").textContent = text;
-      document.getElementById("status-dot").classList.toggle("live", live);
-    }
+  const spotifyData = await getSpotifyPlaylist(mood);
+
+  const spotifyUrl = spotifyData?.external_urls?.spotify || "#";
+  const spotifyName = spotifyData?.name || "Spotify Playlist";
+  const spotifyDesc = spotifyData?.description || "Recommended for your mood";
+
+  const ytSearch = `https://www.youtube.com/results?search_query=${mood}+moody+songs`;
+
+  grid.innerHTML = `
+    <a class="pl-card" href="${spotifyUrl}" target="_blank">
+      <div class="pl-icon spotify"></div>
+      <div class="pl-info">
+        <div class="pl-platform">Spotify</div>
+        <div class="pl-name">${spotifyName}</div>
+        <div class="pl-desc">${spotifyDesc}</div>
+      </div>
+      <div class="pl-arrow">→</div>
+    </a>
+
+    <a class="pl-card" href="${ytSearch}" target="_blank">
+      <div class="pl-icon youtube"></div>
+      <div class="pl-info">
+        <div class="pl-platform">YouTube</div>
+        <div class="pl-name">${mood} Songs</div>
+        <div class="pl-desc">Search results for your mood</div>
+      </div>
+      <div class="pl-arrow">→</div>
+    </a>
+  `;
+}
   </script>
 </body>
 </html>
