@@ -607,36 +607,33 @@ if (detections.length > 0) {
   
   async function getSpotifyPlaylist(mood) {
       const res = await fetch(`/api/spotify?mood=${mood}`);
-      const data = await res.json();
-
-      return data.playlists?.items?.[0];
+      return await res.json(); 
   }
   <!---- ONLY CHANGE IS INSIDE renderPlaylists FUNCTION --->
 
-async function renderPlaylists(mood) {
-  const data = await getSpotifyPlaylist(mood);
-  const grid = document.getElementById("playlist-grid");
-  const ytSearch = `https://www.youtube.com/results?search_query=${mood}+moody+songs`;
+  async function renderPlaylists(mood) {
+    const data = await getSpotifyPlaylist(mood);
+    const grid = document.getElementById("playlist-grid");
 
-  grid.innerHTML = `
-    <a class="pl-card" href="${data.url}" target="_blank">
-      <div class="pl-info">
-        <div class="pl-platform">Spotify</div>
-        <div class="pl-name">${data.name}</div>
-      </div>
-    </a>
+    const ytSearch = `https://www.youtube.com/results?search_query=${mood}+songs`;
 
-    <a class="pl-card" href="${ytSearch}" target="_blank">
-      <div class="pl-icon youtube"></div>
-      <div class="pl-info">
-        <div class="pl-platform">YouTube</div>
-        <div class="pl-name">${mood} Songs</div>
-        <div class="pl-desc">Search results for your mood</div>
-      </div>
-      <div class="pl-arrow">→</div>
-    </a>
-  `;
-}
-  </script>
+    grid.innerHTML = `
+      <a class="pl-card" href="${data?.url || '#'}" target="_blank">
+        <div class="pl-info">
+          <div class="pl-platform">Spotify</div>
+          <div class="pl-name">${data?.name || "No playlist found"}</div>
+        </div>
+      </a>
+
+      <a class="pl-card" href="${ytSearch}" target="_blank">
+        <div class="pl-info">
+          <div class="pl-platform">YouTube</div>
+          <div class="pl-name">${mood} Songs</div>
+          <div class="pl-desc">Search results for your mood</div>
+        </div>
+      </a>
+    `;
+  }  
+</script>
 </body>
 </html>
