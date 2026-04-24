@@ -13,17 +13,19 @@
       --surface: #111111;
       --surface2: #191919;
       --border: rgba(255,255,255,0.07);
-      --border-bright: rgba(255,255,255,0.14);
+      --border-bright: rgba(255,255,255,0.15);
       --text: #f2f2f2;
-      --muted: #666;
-      --dim: #3a3a3a;
-
-      --happy:  #f7c948;
-      --sad:    #5b9cf6;
-      --angry:  #f46a6a;
-      --neutral:#a3e6a3;
-      --accent: #f2f2f2;
+      --muted: #555;
+      --dim: #2e2e2e;
+      --happy:   #f7c948;
+      --sad:     #5b9cf6;
+      --angry:   #f46a6a;
+      --neutral: #a3e6a3;
+      --surprise:#d17aff;
+      --accent:  #f2f2f2;
     }
+
+    html { scroll-behavior: smooth; }
 
     body {
       background: var(--bg);
@@ -31,609 +33,762 @@
       font-family: 'DM Sans', sans-serif;
       min-height: 100vh;
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 420px 1fr;
       grid-template-rows: auto 1fr auto;
     }
 
-    /* ─── NOISE OVERLAY ─────────────────────────────── */
+    /* NOISE */
     body::before {
       content: '';
       position: fixed; inset: 0; z-index: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
-      opacity: 0.025;
-      pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      opacity: 0.03; pointer-events: none;
     }
 
-    /* ─── HEADER ─────────────────────────────────────── */
+    /* ── HEADER ── */
     header {
       grid-column: 1 / -1;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 1.4rem 2.5rem;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1.2rem 2rem;
       border-bottom: 1px solid var(--border);
-      position: relative; z-index: 2;
+      position: relative; z-index: 10;
     }
     .logo {
       font-family: 'Syne', sans-serif;
-      font-weight: 800;
-      font-size: 1.35rem;
-      letter-spacing: -0.02em;
+      font-weight: 800; font-size: 1.25rem; letter-spacing: -0.02em;
     }
     .logo span { color: var(--muted); font-weight: 400; }
     .status-pill {
       display: flex; align-items: center; gap: 7px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      padding: 5px 14px;
-      border-radius: 999px;
-      font-size: 0.78rem;
-      color: var(--muted);
+      background: var(--surface2); border: 1px solid var(--border);
+      padding: 5px 14px; border-radius: 999px;
+      font-size: 0.75rem; color: var(--muted);
     }
-    .dot {
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      background: var(--dim);
-      transition: background 0.4s;
-    }
-    .dot.live { background: #4ade80; box-shadow: 0 0 6px #4ade8088; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--dim); transition: background 0.4s, box-shadow 0.4s; }
+    .dot.live { background: #4ade80; box-shadow: 0 0 8px #4ade8077; }
+    .dot.locked { background: var(--happy); box-shadow: 0 0 8px #f7c94866; }
 
-    /* ─── LEFT PANEL ─────────────────────────────────── */
+    /* ── LEFT PANEL ── */
     .left {
-      position: relative; z-index: 1;
-      padding: 2.5rem;
+      position: sticky; top: 0; height: 100vh;
+      z-index: 2;
+      padding: 1.8rem;
       border-right: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 1.5rem;
+      display: flex; flex-direction: column; align-items: center; gap: 1.2rem;
+      overflow: hidden;
     }
 
+    /* Camera box */
     .cam-wrap {
-      width: 100%;
+      width: 100%; max-width: 340px;
       aspect-ratio: 1;
-      max-width: 340px;
-      border-radius: 20px;
-      overflow: hidden;
+      border-radius: 18px; overflow: hidden;
       border: 1px solid var(--border-bright);
       background: var(--surface);
       position: relative;
       display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
     }
-    .cam-wrap video {
-      width: 100% !important;
-      height: 100% !important;
-      object-fit: cover;
-      display: block;
+    .cam-wrap video, .cam-wrap canvas {
+      width: 100% !important; height: 100% !important;
+      object-fit: cover; display: block; border-radius: 0;
     }
     .cam-placeholder {
       display: flex; flex-direction: column; align-items: center; gap: 10px;
-      color: var(--muted); font-size: 0.85rem;
+      color: var(--muted); font-size: 0.83rem;
     }
     .cam-icon {
-      width: 52px; height: 52px;
-      border-radius: 50%;
+      width: 48px; height: 48px; border-radius: 50%;
       border: 1px solid var(--border-bright);
       display: flex; align-items: center; justify-content: center;
     }
-    .cam-icon svg { width: 22px; height: 22px; stroke: var(--muted); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .cam-icon svg { width: 20px; height: 20px; stroke: var(--muted); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 
-    /* scanning line */
+    /* scan line */
     .scan-line {
-      position: absolute; top: 0; left: 0; right: 0;
-      height: 2px;
-      background: linear-gradient(90deg, transparent, var(--accent), transparent);
-      opacity: 0;
-      animation: scan 2.5s ease-in-out infinite;
+      position: absolute; left: 0; right: 0; height: 2px; top: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+      opacity: 0; display: none;
+      animation: scan 2.2s ease-in-out infinite;
     }
     @keyframes scan {
       0%   { top: 0%;   opacity: 0; }
-      10%  { opacity: 0.35; }
-      90%  { opacity: 0.35; }
+      8%   { opacity: 0.5; }
+      92%  { opacity: 0.5; }
       100% { top: 100%; opacity: 0; }
     }
 
-    /* corner brackets */
+    /* brackets */
     .cam-wrap::before, .cam-wrap::after {
-      content: '';
-      position: absolute;
-      width: 22px; height: 22px;
-      border-color: var(--border-bright);
-      border-style: solid;
-      z-index: 3;
+      content: ''; position: absolute;
+      width: 20px; height: 20px;
+      border-color: var(--border-bright); border-style: solid; z-index: 3;
     }
-    .cam-wrap::before { top: 10px; left: 10px; border-width: 2px 0 0 2px; border-radius: 4px 0 0 0; }
-    .cam-wrap::after  { bottom: 10px; right: 10px; border-width: 0 2px 2px 0; border-radius: 0 0 4px 0; }
+    .cam-wrap::before { top: 9px; left: 9px; border-width: 2px 0 0 2px; border-radius: 3px 0 0 0; }
+    .cam-wrap::after  { bottom: 9px; right: 9px; border-width: 0 2px 2px 0; border-radius: 0 0 3px 0; }
 
-    /* mood bar */
-    .mood-bars {
-      width: 100%; max-width: 340px;
-      display: flex; flex-direction: column; gap: 8px;
+    /* ── TIMER RING ── */
+    .timer-ring-wrap {
+      position: absolute; bottom: 10px; left: 10px;
+      width: 42px; height: 42px;
+      display: none; z-index: 4;
     }
-    .bar-row {
-      display: flex; align-items: center; gap: 10px;
-      font-size: 0.78rem;
-      color: var(--muted);
+    .timer-ring-wrap svg { transform: rotate(-90deg); }
+    .timer-bg { fill: none; stroke: rgba(255,255,255,0.1); stroke-width: 3; }
+    .timer-arc {
+      fill: none; stroke: var(--accent); stroke-width: 3;
+      stroke-linecap: round;
+      stroke-dasharray: 113; /* 2π×18 */
+      stroke-dashoffset: 0;
+      transition: stroke-dashoffset 1s linear, stroke 0.5s;
     }
-    .bar-label { width: 52px; text-align: right; }
-    .bar-track {
-      flex: 1; height: 4px;
-      background: var(--surface2);
-      border-radius: 99px; overflow: hidden;
+    .timer-num {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Syne', sans-serif; font-size: 0.8rem; font-weight: 700;
+      color: var(--accent);
     }
-    .bar-fill {
-      height: 100%; border-radius: 99px;
-      width: 0%; transition: width 0.3s ease;
-    }
-    .bar-pct { width: 34px; text-align: right; }
 
-    .start-btn {
-      width: 100%; max-width: 340px;
-      padding: 0.9rem;
-      background: var(--text);
-      color: #080808;
-      border: none;
-      border-radius: 12px;
-      font-family: 'Syne', sans-serif;
-      font-weight: 700;
-      font-size: 0.95rem;
-      letter-spacing: 0.02em;
-      cursor: pointer;
-      transition: opacity 0.2s, transform 0.15s;
-    }
-    .start-btn:hover { opacity: 0.88; transform: translateY(-1px); }
-    .start-btn:active { transform: scale(0.98); }
-    .start-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    /* ── MOOD BARS ── */
+    .mood-bars { width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 7px; }
+    .bar-row { display: flex; align-items: center; gap: 9px; font-size: 0.75rem; color: var(--muted); }
+    .bar-label { width: 54px; text-align: right; }
+    .bar-track { flex: 1; height: 3px; background: var(--dim); border-radius: 99px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 99px; width: 0%; transition: width 0.35s ease; }
+    .bar-pct { width: 32px; text-align: right; font-variant-numeric: tabular-nums; }
 
-    /* ─── RIGHT PANEL ────────────────────────────────── */
+    /* bar colors per emotion */
+    #bar-Happy   { background: var(--happy); }
+    #bar-Sad     { background: var(--sad); }
+    #bar-Angry   { background: var(--angry); }
+    #bar-Neutral { background: var(--neutral); }
+    #bar-Surprise{ background: var(--surprise); }
+
+    /* ── BUTTONS ── */
+    .btn-primary {
+      width: 100%; max-width: 340px; padding: 0.85rem;
+      background: var(--text); color: #080808;
+      border: none; border-radius: 11px;
+      font-family: 'Syne', sans-serif; font-weight: 700;
+      font-size: 0.9rem; letter-spacing: 0.02em;
+      cursor: pointer; transition: opacity 0.2s, transform 0.15s;
+      flex-shrink: 0;
+    }
+    .btn-primary:hover:not(:disabled) { opacity: 0.87; transform: translateY(-1px); }
+    .btn-primary:active:not(:disabled) { transform: scale(0.98); }
+    .btn-primary:disabled { opacity: 0.25; cursor: not-allowed; }
+
+    .btn-rescan {
+      width: 100%; max-width: 340px; padding: 0.75rem;
+      background: transparent; color: var(--muted);
+      border: 1px solid var(--border-bright); border-radius: 11px;
+      font-family: 'Syne', sans-serif; font-weight: 600;
+      font-size: 0.85rem; letter-spacing: 0.04em; text-transform: uppercase;
+      cursor: pointer; transition: all 0.2s;
+      display: none; flex-shrink: 0;
+    }
+    .btn-rescan:hover { color: var(--text); border-color: rgba(255,255,255,0.3); background: var(--surface2); }
+
+    /* ── RIGHT PANEL ── */
     .right {
       position: relative; z-index: 1;
-      padding: 2.5rem;
-      display: flex; flex-direction: column;
-      gap: 1.5rem;
-      overflow-y: auto;
+      padding: 1.8rem 2rem;
+      display: flex; flex-direction: column; gap: 1.4rem;
+      overflow-y: auto; min-height: 0;
     }
 
+    /* ── MOOD HERO ── */
     .mood-hero {
-      padding: 2rem;
-      border-radius: 20px;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      display: flex; flex-direction: column; gap: 6px;
-      min-height: 140px;
-      justify-content: center;
-      transition: border-color 0.5s;
+      padding: 1.8rem 2rem; border-radius: 18px;
+      border: 1px solid var(--border); background: var(--surface);
+      display: flex; flex-direction: column; gap: 5px;
+      min-height: 130px; justify-content: center;
       position: relative; overflow: hidden;
+      transition: border-color 0.6s;
     }
     .mood-hero::before {
-      content: '';
-      position: absolute; inset: 0;
-      opacity: 0;
-      transition: opacity 0.6s;
-      pointer-events: none;
+      content: ''; position: absolute; inset: 0;
+      opacity: 0; transition: opacity 0.7s; pointer-events: none;
     }
-    .mood-hero.active::before { opacity: 1; }
-
-    .mood-tag {
-      font-size: 0.7rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
+    .mood-tag { font-size: 0.67rem; letter-spacing: 0.13em; text-transform: uppercase; color: var(--muted); }
     .mood-name {
-      font-family: 'Syne', sans-serif;
-      font-size: 3rem;
-      font-weight: 800;
-      line-height: 1;
-      letter-spacing: -0.03em;
+      font-family: 'Syne', sans-serif; font-size: 3rem;
+      font-weight: 800; line-height: 1; letter-spacing: -0.03em;
       transition: color 0.5s;
     }
-    .mood-conf { font-size: 0.85rem; color: var(--muted); margin-top: 4px; }
+    .mood-conf { font-size: 0.82rem; color: var(--muted); margin-top: 3px; }
 
-    /* ─── PLAYLIST CARDS ─────────────────────────────── */
-    .section-label {
-      font-size: 0.7rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
+    /* ── LOCKED BANNER ── */
+    .locked-badge {
+      display: none;
+      position: absolute; top: 14px; right: 14px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid var(--border-bright);
+      border-radius: 999px; padding: 4px 12px;
+      font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase;
       color: var(--muted);
     }
 
-    .playlist-grid {
-      display: flex; flex-direction: column; gap: 10px;
-    }
+    /* ── SECTION LABEL ── */
+    .section-label { font-size: 0.67rem; letter-spacing: 0.13em; text-transform: uppercase; color: var(--muted); }
 
-    .pl-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 1rem 1.2rem;
-      display: flex; align-items: center; gap: 14px;
-      transition: border-color 0.25s, background 0.25s, transform 0.15s;
-      text-decoration: none; color: inherit;
-      cursor: pointer;
-    }
-    .pl-card:hover { border-color: var(--border-bright); background: var(--surface2); transform: translateX(3px); }
-
-    .pl-icon {
-      width: 42px; height: 42px;
-      border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-      font-size: 1.2rem;
-    }
-    .pl-icon.spotify { background: #1a2e1a; }
-    .pl-icon.youtube { background: #2e1a1a; }
-    .pl-icon svg { width: 20px; height: 20px; }
-
-    .pl-info { flex: 1; min-width: 0; }
-    .pl-platform { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
-    .pl-name { font-weight: 500; font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .pl-desc { font-size: 0.78rem; color: var(--muted); margin-top: 1px; }
-
-    .pl-arrow { color: var(--dim); font-size: 1rem; transition: transform 0.2s, color 0.2s; }
-    .pl-card:hover .pl-arrow { transform: translateX(3px); color: var(--muted); }
-
+    /* ── WAITING STATE ── */
     .waiting-state {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 10px; color: var(--muted);
-      padding: 3rem 0; font-size: 0.88rem; text-align: center;
-      border: 1px dashed var(--border);
-      border-radius: 14px;
+      gap: 10px; color: var(--muted); padding: 3.5rem 0;
+      font-size: 0.86rem; text-align: center;
+      border: 1px dashed var(--border); border-radius: 14px;
     }
-    .waiting-state svg { width: 28px; height: 28px; stroke: var(--dim); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .waiting-state svg { width: 26px; height: 26px; stroke: var(--dim); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 
-    /* ─── FOOTER ─────────────────────────────────────── */
+    /* ── SCANNING STATE ── */
+    .scanning-state {
+      display: none;
+      flex-direction: column; align-items: center; justify-content: center;
+      gap: 12px; padding: 3rem 0;
+      border: 1px dashed var(--border); border-radius: 14px;
+    }
+    .scan-pulse {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 2px solid var(--border-bright);
+      position: relative;
+    }
+    .scan-pulse::after {
+      content: ''; position: absolute; inset: -6px;
+      border-radius: 50%; border: 2px solid rgba(255,255,255,0.1);
+      animation: pulse 1.4s ease-out infinite;
+    }
+    @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(1.6); opacity: 0; } }
+    .scan-text { font-size: 0.82rem; color: var(--muted); }
+    .scan-countdown { font-family: 'Syne', sans-serif; font-size: 2rem; font-weight: 800; color: var(--text); line-height: 1; }
+
+    /* ── VIDEO GRID ── */
+    .video-section { display: none; flex-direction: column; gap: 1rem; }
+    .video-section.visible { display: flex; }
+
+    .video-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .yt-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .yt-card:hover { border-color: var(--border-bright); transform: translateY(-2px); }
+
+    .yt-embed {
+      position: relative; width: 100%; padding-bottom: 56.25%;
+      background: #000;
+    }
+    .yt-embed iframe {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%; border: none;
+    }
+
+    .yt-meta { padding: 10px 12px; }
+    .yt-title { font-size: 0.82rem; font-weight: 500; line-height: 1.4; color: var(--text); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .yt-channel { font-size: 0.72rem; color: var(--muted); margin-top: 4px; }
+
+    /* loading skeletons */
+    .yt-skeleton {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden;
+    }
+    .skel-thumb { width: 100%; padding-bottom: 56.25%; background: var(--surface2); position: relative; overflow: hidden; }
+    .skel-thumb::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.04) 50%, transparent 100%);
+      animation: shimmer 1.5s infinite;
+    }
+    @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+    .skel-line { height: 10px; background: var(--surface2); border-radius: 4px; margin: 12px 12px 6px; }
+    .skel-line.short { width: 55%; margin-top: 0; }
+
+    /* ── FOOTER ── */
     footer {
       grid-column: 1 / -1;
       border-top: 1px solid var(--border);
-      padding: 1rem 2.5rem;
+      padding: 0.9rem 2rem;
       display: flex; align-items: center; justify-content: space-between;
-      font-size: 0.75rem; color: var(--muted);
+      font-size: 0.72rem; color: var(--muted);
       position: relative; z-index: 2;
     }
 
-    /* ─── MOOD COLOR THEMES ──────────────────────────── */
+    /* ── THEMES ── */
     .theme-happy  .mood-name { color: var(--happy); }
-    .theme-happy  .mood-hero { border-color: #f7c94830; }
-    .theme-happy  .mood-hero::before { background: radial-gradient(ellipse at 0% 0%, #f7c94812, transparent 60%); }
-    .theme-happy  .bar-fill.active { background: var(--happy); }
+    .theme-happy  .mood-hero { border-color: rgba(247,201,72,0.2); }
+    .theme-happy  .mood-hero::before { background: radial-gradient(ellipse at 10% 10%, rgba(247,201,72,0.08), transparent 60%); opacity: 1; }
+    .theme-happy  .timer-arc { stroke: var(--happy); }
+    .theme-happy  .scan-countdown { color: var(--happy); }
 
     .theme-sad    .mood-name { color: var(--sad); }
-    .theme-sad    .mood-hero { border-color: #5b9cf630; }
-    .theme-sad    .mood-hero::before { background: radial-gradient(ellipse at 0% 0%, #5b9cf612, transparent 60%); }
-    .theme-sad    .bar-fill.active { background: var(--sad); }
+    .theme-sad    .mood-hero { border-color: rgba(91,156,246,0.2); }
+    .theme-sad    .mood-hero::before { background: radial-gradient(ellipse at 10% 10%, rgba(91,156,246,0.08), transparent 60%); opacity: 1; }
+    .theme-sad    .timer-arc { stroke: var(--sad); }
+    .theme-sad    .scan-countdown { color: var(--sad); }
 
     .theme-angry  .mood-name { color: var(--angry); }
-    .theme-angry  .mood-hero { border-color: #f46a6a30; }
-    .theme-angry  .mood-hero::before { background: radial-gradient(ellipse at 0% 0%, #f46a6a12, transparent 60%); }
-    .theme-angry  .bar-fill.active { background: var(--angry); }
+    .theme-angry  .mood-hero { border-color: rgba(244,106,106,0.2); }
+    .theme-angry  .mood-hero::before { background: radial-gradient(ellipse at 10% 10%, rgba(244,106,106,0.08), transparent 60%); opacity: 1; }
+    .theme-angry  .timer-arc { stroke: var(--angry); }
+    .theme-angry  .scan-countdown { color: var(--angry); }
 
     .theme-neutral .mood-name { color: var(--neutral); }
-    .theme-neutral .mood-hero { border-color: #a3e6a330; }
-    .theme-neutral .mood-hero::before { background: radial-gradient(ellipse at 0% 0%, #a3e6a312, transparent 60%); }
-    .theme-neutral .bar-fill.active { background: var(--neutral); }
+    .theme-neutral .mood-hero { border-color: rgba(163,230,163,0.2); }
+    .theme-neutral .mood-hero::before { background: radial-gradient(ellipse at 10% 10%, rgba(163,230,163,0.08), transparent 60%); opacity: 1; }
+    .theme-neutral .timer-arc { stroke: var(--neutral); }
+    .theme-neutral .scan-countdown { color: var(--neutral); }
 
-    /* ─── RESPONSIVE ─────────────────────────────────── */
-    @media (max-width: 700px) {
+    .theme-surprise .mood-name { color: var(--surprise); }
+    .theme-surprise .mood-hero { border-color: rgba(209,122,255,0.2); }
+    .theme-surprise .mood-hero::before { background: radial-gradient(ellipse at 10% 10%, rgba(209,122,255,0.08), transparent 60%); opacity: 1; }
+    .theme-surprise .timer-arc { stroke: var(--surprise); }
+    .theme-surprise .scan-countdown { color: var(--surprise); }
+
+    /* responsive */
+    @media (max-width: 800px) {
       body { grid-template-columns: 1fr; }
-      .left { border-right: none; border-bottom: 1px solid var(--border); }
+      .left { position: relative; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
       .mood-name { font-size: 2.2rem; }
+      .video-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
 
-  <!-- HEADER -->
-  <header>
-    <div class="logo">Moodify <span>/ AI Music</span></div>
-    <div class="status-pill">
-      <div class="dot" id="status-dot"></div>
-      <span id="status-text">Ready</span>
-    </div>
-  </header>
+<!-- HEADER -->
+<header>
+  <div class="logo">Moodify <span>/ AI Music</span></div>
+  <div class="status-pill">
+    <div class="dot" id="status-dot"></div>
+    <span id="status-text">Ready</span>
+  </div>
+</header>
 
-  <!-- LEFT: CAMERA -->
-  <div class="left">
-    <div class="cam-wrap" id="cam-wrap">
-      <div class="scan-line" id="scan-line" style="display:none"></div>
-      <div class="cam-placeholder" id="cam-placeholder">
-        <div class="cam-icon">
-          <svg viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
-        </div>
-        <span>Camera preview</span>
-      </div>
-      <div id="webcam-container"></div>
-    </div>
+<!-- LEFT: CAMERA + BARS -->
+<div class="left">
+  <div class="cam-wrap" id="cam-wrap">
+    <div class="scan-line" id="scan-line"></div>
 
-    <!-- CONFIDENCE BARS -->
-    <div class="mood-bars" id="mood-bars">
-      <div class="bar-row">
-        <span class="bar-label">Happy</span>
-        <div class="bar-track"><div class="bar-fill" id="bar-Happy" style="background:#f7c948"></div></div>
-        <span class="bar-pct" id="pct-Happy">0%</span>
-      </div>
-      <div class="bar-row">
-        <span class="bar-label">Sad</span>
-        <div class="bar-track"><div class="bar-fill" id="bar-Sad" style="background:#5b9cf6"></div></div>
-        <span class="bar-pct" id="pct-Sad">0%</span>
-      </div>
-      <div class="bar-row">
-        <span class="bar-label">Angry</span>
-        <div class="bar-track"><div class="bar-fill" id="bar-Angry" style="background:#f46a6a"></div></div>
-        <span class="bar-pct" id="pct-Angry">0%</span>
-      </div>
-      <div class="bar-row">
-        <span class="bar-label">Neutral</span>
-        <div class="bar-track"><div class="bar-fill" id="bar-Neutral" style="background:#a3e6a3"></div></div>
-        <span class="bar-pct" id="pct-Neutral">0%</span>
-      </div>
-      <div class="bar-row">
-        <span class="bar-label">Surprise</span>
-        <div class="bar-track"><div class="bar-fill" id="bar-Surprise"></div></div>
-        <span class="bar-pct" id="pct-Surprise">0%</span>
-      </div>
+    <!-- timer ring -->
+    <div class="timer-ring-wrap" id="timer-ring-wrap">
+      <svg viewBox="0 0 42 42" width="42" height="42">
+        <circle class="timer-bg" cx="21" cy="21" r="18"/>
+        <circle class="timer-arc" id="timer-arc" cx="21" cy="21" r="18"/>
+      </svg>
+      <div class="timer-num" id="timer-num">10</div>
     </div>
 
-    <button class="start-btn" id="start-btn" onclick="init()">Start Detection</button>
+    <div class="cam-placeholder" id="cam-placeholder">
+      <div class="cam-icon">
+        <svg viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+      </div>
+      <span>Camera preview</span>
+    </div>
+    <div id="webcam-container"></div>
   </div>
 
-  <!-- RIGHT: RESULTS -->
-  <div class="right" id="right-panel">
-
-    <!-- MOOD DISPLAY -->
-    <div class="mood-hero active" id="mood-hero">
-      <div class="mood-tag">Detected mood</div>
-      <div class="mood-name" id="mood-name">—</div>
-      <div class="mood-conf" id="mood-conf">Start the camera to detect your mood</div>
+  <!-- BARS -->
+  <div class="mood-bars">
+    <div class="bar-row">
+      <span class="bar-label">Happy</span>
+      <div class="bar-track"><div class="bar-fill" id="bar-Happy"></div></div>
+      <span class="bar-pct" id="pct-Happy">0%</span>
     </div>
-
-    <!-- PLAYLISTS -->
-    <div class="section-label">Recommended playlists</div>
-
-    <div class="playlist-grid" id="playlist-grid">
-      <div class="waiting-state" id="waiting-state">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        Playlists will appear once your mood is detected
-      </div>
+    <div class="bar-row">
+      <span class="bar-label">Sad</span>
+      <div class="bar-track"><div class="bar-fill" id="bar-Sad"></div></div>
+      <span class="bar-pct" id="pct-Sad">0%</span>
     </div>
-
+    <div class="bar-row">
+      <span class="bar-label">Angry</span>
+      <div class="bar-track"><div class="bar-fill" id="bar-Angry"></div></div>
+      <span class="bar-pct" id="pct-Angry">0%</span>
+    </div>
+    <div class="bar-row">
+      <span class="bar-label">Neutral</span>
+      <div class="bar-track"><div class="bar-fill" id="bar-Neutral"></div></div>
+      <span class="bar-pct" id="pct-Neutral">0%</span>
+    </div>
+    <div class="bar-row">
+      <span class="bar-label">Surprise</span>
+      <div class="bar-track"><div class="bar-fill" id="bar-Surprise"></div></div>
+      <span class="bar-pct" id="pct-Surprise">0%</span>
+    </div>
   </div>
 
-  <!-- FOOTER -->
-  <footer>
-    <span>Powered by face-api.js</span>
-    <span>Moodify — AI Mini Project</span>
-  </footer>
+  <button class="btn-primary" id="start-btn" onclick="startScan()">Start Detection</button>
+  <button class="btn-rescan" id="rescan-btn" onclick="rescan()">↺ Scan Again</button>
+</div>
 
-  <!-- SCRIPTS -->
-  <script defer src="https://unpkg.com/face-api.js@0.22.2/dist/face-api.min.js"></script>
-  <script>
-    
+<!-- RIGHT: RESULTS -->
+<div class="right" id="right-panel">
 
-    // ══════════════════════════════════════════════════
-    //  PLAYLIST DATA — edit these to change links/names
-    // ══════════════════════════════════════════════════
+  <!-- MOOD HERO -->
+  <div class="mood-hero" id="mood-hero">
+    <div class="mood-tag">Detected mood</div>
+    <div class="mood-name" id="mood-name">—</div>
+    <div class="mood-conf" id="mood-conf">Start the camera to detect your mood</div>
+    <div class="locked-badge" id="locked-badge">✓ Locked In</div>
+  </div>
 
-    const playlists = {
-      Happy: {
-        label: "Happy",
-        theme: "theme-happy",
-        spotify: {
-          name: "Good Vibes Only",
-          desc: "Feel-good hits to keep you smiling",
-          url: "https://open.spotify.com/search/happy%20playlist"
-        },
-        youtube: {
-          name: "Happy Hits 2024",
-          desc: "Top upbeat tracks, curated for joy",
-          url: "https://www.youtube.com/results?search_query=happy+songs+playlist"
-        }
-      },
-      Sad: {
-        label: "Sad",
-        theme: "theme-sad",
-        spotify: {
-          name: "Life is Beautiful",
-          desc: "Emotional melodies for quiet moments",
-          url: "https://open.spotify.com/search/Sad%20playlist"
-        },
-        youtube: {
-          name: "Sad Songs Playlist",
-          desc: "Let it out — songs that understand you",
-          url: "https://www.youtube.com/results?search_query=Sad+songs+playlist"
-        }
-      },
-      Surprise: {
-        label: "Surprise",
-        theme: "theme-happy",
-        spotify: {
-          name: "Unexpected Vibes",
-          desc: "Music for sudden moments 😲",
-          url: "https://open.spotify.com/search/surprise%20playlist"
-        },
-        youtube: {
-          name: "Surprise Energy Mix",
-          desc: "Unpredictable beats & vibes",
-          url: "https://www.youtube.com/results?search_query=Surprise+songs+playlist"
-        }
-      },
-      Angry: {
-        label: "Angry",
-        theme: "theme-angry",
-        spotify: {
-          name: "Beast Mode",
-          desc: "Intense tracks to channel your energy",
-          url: "https://open.spotify.com/search/Angry%20playlist"
-        },
-        youtube: {
-          name: "Workout Motivation",
-          desc: "Turn that fire into fuel",
-          url: "https://www.youtube.com/results?search_query=Angry+songs+playlist"
-        }
-      },
-      Neutral: {
-        label: "Neutral",
-        theme: "theme-neutral",
-        spotify: {
-          name: "Chill Hits",
-          desc: "Easy listening for a calm state of mind",
-          url: "https://open.spotify.com/search/Neutral%20playlist"
-        },
-        youtube: {
-          name: "Lofi Hip Hop Radio",
-          desc: "Background beats to relax or focus",
-          url: "https://www.youtube.com/results?search_query=Neutral+songs+playlist"
-        }
-      }
-    };
+  <!-- WAITING -->
+  <div class="waiting-state" id="waiting-state">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    Videos will appear after mood is locked in
+  </div>
 
-    // ══════════════════════════════════════════════════
-    //  APP LOGIC
-    // ══════════════════════════════════════════════════
-    let video;
-    let currentMood = null;
+  <!-- SCANNING -->
+  <div class="scanning-state" id="scanning-state">
+    <div class="scan-pulse"></div>
+    <div class="scan-text">Analyzing your expression…</div>
+    <div class="scan-countdown" id="scan-countdown">10</div>
+  </div>
 
-    const MOODS = ["Happy", "Sad", "Angry", "Neutral"];
+  <!-- VIDEO SECTION -->
+  <div class="video-section" id="video-section">
+    <div class="section-label" id="video-label">Videos for your mood</div>
+    <div class="video-grid" id="video-grid"></div>
+  </div>
 
-    async function init() {
-    const btn = document.getElementById("start-btn");
-    btn.disabled = true;
-    btn.textContent = "Loading AI...";
+</div>
 
-    setStatus("Loading...", false);
+<!-- FOOTER -->
+<footer>
+  <span>Powered by face-api.js</span>
+  <span>Moodify — AI Mini Project</span>
+</footer>
 
-      // Create video element
-      video = document.createElement("video");
-      video.width = 340;
-      video.height = 340;
-      video.autoplay = true;
-      video.muted = true;
-
-      try {
-        await Promise.all([
-        faceapi.nets.tinyFaceDetector.loadFromUri('./models'),
-        faceapi.nets.faceExpressionNet.loadFromUri('./models')
-      ]);
-
-
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      video.srcObject = stream;
-
-      document.getElementById("cam-placeholder").style.display = "none";
-      document.getElementById("webcam-container").appendChild(video);
-      document.getElementById("scan-line").style.display = "block";
-
-      btn.style.display = "none";
-      setStatus("Live", true);
-
-      video.addEventListener("play", detectLoop);
-
-
-      } catch (e) {
-        btn.disabled = false;
-        btn.textContent = "Retry";
-      setStatus("Error loading AI", false);
-      }
-    }
-
-      async function detectLoop() {
-        setInterval(async () => {
-        const detections = await faceapi.detectAllFaces(
-          video,
-          new faceapi.TinyFaceDetectorOptions()
-          ).withFaceExpressions();
-
-if (detections.length > 0) {
-  const expressions = detections[0].expressions;
-
-  // Convert to your app labels
-  const mapped = {
-  Happy: expressions.happy,
-  Sad: expressions.sad,
-  Angry: expressions.angry,
-  Neutral: expressions.neutral,
-  Surprise: expressions.surprised
+<!-- face-api -->
+<script defer src="https://unpkg.com/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script>
+// ══════════════════════════════════════════════
+// YOUTUBE VIDEO IDs PER MOOD
+// Replace these with actual video IDs you want!
+// ══════════════════════════════════════════════
+const VIDEOS = {
+  Happy: [
+    { id: "ZbZSe6N_BXs", title: "Happy — Pharrell Williams", channel: "PharrellWilliamsVEVO" },
+    { id: "ru0K8uYEZWw", title: "Can't Stop The Feeling — Justin Timberlake", channel: "JustinTimberlakeVEVO" },
+    { id: "OPf0YbXqDm0", title: "Uptown Funk — Mark Ronson ft. Bruno Mars", channel: "Mark Ronson" },
+    { id: "09R8_2nJtjg", title: "Sugar — Maroon 5", channel: "Maroon5VEVO" },
+    { id: "fLexgOxsZu0", title: "Shake It Off — Taylor Swift", channel: "Taylor Swift" },
+    { id: "hT_nvWreIhg", title: "Counting Stars — OneRepublic", channel: "OneRepublic" },
+  ],
+  Sad: [
+    { id: "RgKAFK5djSk", title: "See You Again — Wiz Khalifa ft. Charlie Puth", channel: "WizKhalifaVEVO" },
+    { id: "450p7goxZqg", title: "Let Her Go — Passenger", channel: "PassengerMusic" },
+    { id: "djV11Xbc914", title: "A-ha — Take On Me", channel: "a-ha" },
+    { id: "hLQl3WQQoQ0", title: "Someone Like You — Adele", channel: "Adele" },
+    { id: "mWRsgZuwf_8", title: "Fix You — Coldplay", channel: "Coldplay" },
+    { id: "bo_efYhYU2A", title: "The Night We Met — Lord Huron", channel: "Lord Huron" },
+  ],
+  Angry: [
+    { id: "CDl9ZMfj6aE", title: "Lose Yourself — Eminem", channel: "EminemMusic" },
+    { id: "04F4xlWSFh0", title: "Killing In The Name — Rage Against The Machine", channel: "RATMVEVO" },
+    { id: "n4bfMkgBNl8", title: "Numb — Linkin Park", channel: "Linkin Park" },
+    { id: "eVTXPUF4Oz4", title: "In The End — Linkin Park", channel: "Linkin Park" },
+    { id: "1wYNFfgrXTI", title: "Bulls On Parade — Rage Against The Machine", channel: "RATM" },
+    { id: "kXYiU_JCYtU", title: "Numb/Encore — Jay-Z & Linkin Park", channel: "Linkin Park" },
+  ],
+  Neutral: [
+    { id: "5qap5aO4i9A", title: "Lofi Hip Hop Radio — Beats to Relax/Study to", channel: "Lofi Girl" },
+    { id: "DWcJFNfaw9c", title: "The Weeknd — Blinding Lights", channel: "The Weeknd" },
+    { id: "JGwWNGJdvx8", title: "Shape of You — Ed Sheeran", channel: "Ed Sheeran" },
+    { id: "7wtfhZwyrcc", title: "Stay With Me — Sam Smith", channel: "Sam Smith" },
+    { id: "lp-EusDg9ec", title: "Stay — Rihanna ft. Mikky Ekko", channel: "RihannaVEVO" },
+    { id: "pB-5XG-DbAA", title: "Stitches — Shawn Mendes", channel: "Shawn Mendes" },
+  ],
+  Surprise: [
+    { id: "9jK-NcRmVtw", title: "Bohemian Rhapsody — Queen", channel: "Queen Official" },
+    { id: "fJ9rUzIMcZQ", title: "Bohemian Rhapsody Radio Edit", channel: "Queen" },
+    { id: "1w7OgIMMRc4", title: "Sweet Child O' Mine — Guns N' Roses", channel: "Guns N' Roses" },
+    { id: "WSeNSzJ2-Jw", title: "Thunderstruck — AC/DC", channel: "AC/DC" },
+    { id: "dQw4w9WgXcQ", title: "Never Gonna Give You Up — Rick Astley", channel: "Rick Astley" },
+    { id: "y6120QOlsfU", title: "Sandstorm — Darude", channel: "Darude" },
+  ]
 };
 
-  const mood = Object.keys(mapped).reduce((a, b) =>
-    mapped[a] > mapped[b] ? a : b
-  );
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
+let video, detectInterval, timerInterval;
+let scanning = false, locked = false;
+let timeLeft = 12;
+let moodScores = { Happy: 0, Sad: 0, Angry: 0, Neutral: 0, Surprise: 0 };
+let currentDisplayMood = null;
 
-  const conf = Math.round(mapped[mood] * 100);
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+async function startScan() {
+  const btn = document.getElementById("start-btn");
+  btn.disabled = true;
+  btn.textContent = "Loading AI...";
+  setStatus("Loading…", false);
 
-  // Update bars
+  try {
+    await faceapi.nets.tinyFaceDetector.loadFromUri('./models');
+    await faceapi.nets.faceExpressionNet.loadFromUri('./models');
+
+    video = document.createElement("video");
+    video.width = 340; video.height = 340;
+    video.autoplay = true; video.muted = true; video.playsInline = true;
+
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    video.srcObject = stream;
+
+    document.getElementById("cam-placeholder").style.display = "none";
+    document.getElementById("webcam-container").appendChild(video);
+    document.getElementById("scan-line").style.display = "block";
+    document.getElementById("start-btn").style.display = "none";
+
+    setStatus("Live", true);
+
+    video.addEventListener("play", () => {
+      beginCountdown();
+    });
+
+  } catch (e) {
+    console.error(e);
+    btn.disabled = false;
+    btn.textContent = "Retry";
+    setStatus("Error — check console", false);
+  }
+}
+
+// ══════════════════════════════════════════════
+// COUNTDOWN + DETECTION
+// ══════════════════════════════════════════════
+function beginCountdown() {
+  scanning = true;
+  locked = false;
+  timeLeft = 12;
+  moodScores = { Happy: 0, Sad: 0, Angry: 0, Neutral: 0, Surprise: 0 };
+
+  // Show scanning UI
+  document.getElementById("waiting-state").style.display = "none";
+  document.getElementById("scanning-state").style.display = "flex";
+  document.getElementById("video-section").classList.remove("visible");
+
+  // Show timer ring
+  const ringWrap = document.getElementById("timer-ring-wrap");
+  ringWrap.style.display = "block";
+  updateTimerRing(timeLeft, 12);
+
+  // Start face detection loop
+  detectInterval = setInterval(runDetection, 800);
+
+  // Start countdown
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    document.getElementById("scan-countdown").textContent = timeLeft;
+    document.getElementById("timer-num").textContent = timeLeft;
+    updateTimerRing(timeLeft, 12);
+
+    if (timeLeft <= 0) {
+      lockMood();
+    }
+  }, 1000);
+}
+
+async function runDetection() {
+  if (!video || !scanning) return;
+
+  try {
+    const detections = await faceapi
+      .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+      .withFaceExpressions();
+
+    if (detections.length > 0) {
+      const exp = detections[0].expressions;
+      const mapped = {
+        Happy:   exp.happy   || 0,
+        Sad:     exp.sad     || 0,
+        Angry:   exp.angry   || 0,
+        Neutral: exp.neutral || 0,
+        Surprise:exp.surprised || 0
+      };
+
+      // Accumulate scores
+      Object.keys(mapped).forEach(k => { moodScores[k] += mapped[k]; });
+
+      // Find dominant right now for display
+      const mood = Object.keys(mapped).reduce((a, b) => mapped[a] > mapped[b] ? a : b);
+      const conf = Math.round(mapped[mood] * 100);
+
+      updateBars(mapped, mood);
+      updateMoodHero(mood, conf, false);
+    }
+  } catch(e) {}
+}
+
+// ══════════════════════════════════════════════
+// LOCK IN MOOD
+// ══════════════════════════════════════════════
+function lockMood() {
+  clearInterval(detectInterval);
+  clearInterval(timerInterval);
+  scanning = false;
+  locked = true;
+
+  // Stop camera
+  if (video && video.srcObject) {
+    video.srcObject.getTracks().forEach(t => t.stop());
+  }
+  document.getElementById("scan-line").style.display = "none";
+  document.getElementById("timer-ring-wrap").style.display = "none";
+
+  // Determine winner from accumulated scores
+  const finalMood = Object.keys(moodScores).reduce((a, b) => moodScores[a] > moodScores[b] ? a : b);
+  const total = Object.values(moodScores).reduce((a, b) => a + b, 0);
+  const conf = total > 0 ? Math.round((moodScores[finalMood] / total) * 100) : 0;
+
+  // Update UI
+  updateMoodHero(finalMood, conf, true);
+  document.getElementById("locked-badge").style.display = "block";
+  setStatus("Locked: " + finalMood, false);
+  document.getElementById("status-dot").classList.add("locked");
+
+  // Show rescan
+  document.getElementById("rescan-btn").style.display = "block";
+
+  // Hide scanning state, show videos
+  document.getElementById("scanning-state").style.display = "none";
+  renderVideos(finalMood);
+}
+
+// ══════════════════════════════════════════════
+// RESCAN
+// ══════════════════════════════════════════════
+function rescan() {
+  locked = false;
+
+  // Reset UI
+  document.getElementById("locked-badge").style.display = "none";
+  document.getElementById("rescan-btn").style.display = "none";
+  document.getElementById("video-section").classList.remove("visible");
+  document.getElementById("waiting-state").style.display = "flex";
+  document.getElementById("status-dot").classList.remove("locked");
+  document.getElementById("mood-name").textContent = "—";
+  document.getElementById("mood-conf").textContent = "Scanning…";
+
+  // Reset bars
+  ["Happy","Sad","Angry","Neutral","Surprise"].forEach(m => {
+    const f = document.getElementById("bar-" + m);
+    const p = document.getElementById("pct-" + m);
+    if (f) f.style.width = "0%";
+    if (p) p.textContent = "0%";
+  });
+
+  // Remove theme
+  const panel = document.getElementById("right-panel");
+  const hero = document.getElementById("mood-hero");
+  ["theme-happy","theme-sad","theme-angry","theme-neutral","theme-surprise"].forEach(t => {
+    panel.classList.remove(t); hero.classList.remove(t);
+  });
+
+  // Rebuild video element
+  const container = document.getElementById("webcam-container");
+  container.innerHTML = "";
+
+  startScan();
+}
+
+// ══════════════════════════════════════════════
+// RENDER YOUTUBE VIDEOS
+// ══════════════════════════════════════════════
+function renderVideos(mood) {
+  const section = document.getElementById("video-section");
+  const grid = document.getElementById("video-grid");
+  const label = document.getElementById("video-label");
+
+  const moodEmoji = { Happy:"😄", Sad:"😢", Angry:"😤", Neutral:"😐", Surprise:"😲" };
+  label.textContent = `${moodEmoji[mood] || ""} ${mood} Vibes — Watch & Enjoy`;
+
+  // Show skeletons first
+  grid.innerHTML = Array(6).fill(0).map(() => `
+    <div class="yt-skeleton">
+      <div class="skel-thumb"></div>
+      <div class="skel-line"></div>
+      <div class="skel-line short"></div>
+    </div>
+  `).join('');
+
+  section.classList.add("visible");
+
+  // Replace with real cards after short delay (feels like loading)
+  setTimeout(() => {
+    const vids = VIDEOS[mood] || VIDEOS["Neutral"];
+    grid.innerHTML = vids.map(v => `
+      <div class="yt-card">
+        <div class="yt-embed">
+          <iframe
+            src="https://www.youtube.com/embed/${v.id}?rel=0&modestbranding=1"
+            title="${v.title}"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen
+            loading="lazy">
+          </iframe>
+        </div>
+        <div class="yt-meta">
+          <div class="yt-title">${v.title}</div>
+          <div class="yt-channel">${v.channel}</div>
+        </div>
+      </div>
+    `).join('');
+  }, 900);
+}
+
+// ══════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════
+function updateBars(mapped, activeMood) {
   Object.keys(mapped).forEach(name => {
     const pct = Math.round(mapped[name] * 100);
     const fill = document.getElementById("bar-" + name);
     const pctEl = document.getElementById("pct-" + name);
-
-    if (fill) {
-      fill.style.width = pct + "%";
-      fill.classList.toggle("active", name === mood);
-    }
+    if (fill) fill.style.width = pct + "%";
     if (pctEl) pctEl.textContent = pct + "%";
   });
+}
 
-  // Update UI
+function updateMoodHero(mood, conf, isFinal) {
+  if (mood === currentDisplayMood && !isFinal) return;
+  currentDisplayMood = mood;
+
   document.getElementById("mood-name").textContent = mood;
-  document.getElementById("mood-conf").textContent = `${conf}% confidence`;
+  document.getElementById("mood-conf").textContent = isFinal
+    ? `Locked in at ${conf}% confidence`
+    : `${conf}% confidence`;
 
+  const themeMap = {
+    Happy:"theme-happy", Sad:"theme-sad", Angry:"theme-angry",
+    Neutral:"theme-neutral", Surprise:"theme-surprise"
+  };
   const hero = document.getElementById("mood-hero");
   const panel = document.getElementById("right-panel");
+  Object.values(themeMap).forEach(t => { hero.classList.remove(t); panel.classList.remove(t); });
+  if (themeMap[mood]) { hero.classList.add(themeMap[mood]); panel.classList.add(themeMap[mood]); }
+}
 
-  ["theme-happy","theme-sad","theme-angry","theme-neutral"].forEach(t => {
-    hero.classList.remove(t);
-    panel.classList.remove(t);
-  });
+function updateTimerRing(current, total) {
+  const arc = document.getElementById("timer-arc");
+  const circumference = 113; // 2π×18
+  const progress = current / total;
+  arc.style.strokeDashoffset = circumference * (1 - progress);
+  document.getElementById("timer-num").textContent = current;
+}
 
-  const theme = playlists[mood]?.theme;
-  if (theme) {
-    hero.classList.add(theme);
-    panel.classList.add(theme);
-  }
-
-  if (mood !== currentMood) {
-    currentMood = mood;
-    renderPlaylists(mood);
-  }
-  }
-  }, 1000);
-} 
-
-  function setStatus(text, live) {
-    document.getElementById("status-text").textContent = text;
-    document.getElementById("status-dot").classList.toggle("live", live);
-  }
-  
-  async function getSpotifyPlaylist(mood) {
-      const res = await fetch(`/api/spotify?mood=${mood}`);
-      return await res.json(); 
-  }
-  <!---- ONLY CHANGE IS INSIDE renderPlaylists FUNCTION --->
-
-  async function renderPlaylists(mood) {
-    const data = await getSpotifyPlaylist(mood);
-    const grid = document.getElementById("playlist-grid");
-
-    const ytSearch = `https://www.youtube.com/results?search_query=${mood}+songs`;
-
-    grid.innerHTML = `
-      <a class="pl-card" href="${data?.url || '#'}" target="_blank">
-        <div class="pl-info">
-          <div class="pl-platform">Spotify</div>
-          <div class="pl-name">${data?.name || "No playlist found"}</div>
-        </div>
-      </a>
-
-      <a class="pl-card" href="${ytSearch}" target="_blank">
-        <div class="pl-info">
-          <div class="pl-platform">YouTube</div>
-          <div class="pl-name">${mood} Songs</div>
-          <div class="pl-desc">Search results for your mood</div>
-        </div>
-      </a>
-    `;
-  }  
+function setStatus(text, live) {
+  document.getElementById("status-text").textContent = text;
+  document.getElementById("status-dot").classList.toggle("live", live);
+}
 </script>
 </body>
 </html>
