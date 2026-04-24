@@ -613,26 +613,17 @@ if (detections.length > 0) {
   }
   <!---- ONLY CHANGE IS INSIDE renderPlaylists FUNCTION --->
 
-  async function renderPlaylists(mood) {
+async function renderPlaylists(mood) {
+  const data = await getSpotifyPlaylist(mood);
   const grid = document.getElementById("playlist-grid");
-
-  const spotifyData = await getSpotifyPlaylist(mood);
-
-  const spotifyUrl = spotifyData?.external_urls?.spotify || "#";
-  const spotifyName = spotifyData?.name || "Spotify Playlist";
-  const spotifyDesc = spotifyData?.description || "Recommended for your mood";
-
   const ytSearch = `https://www.youtube.com/results?search_query=${mood}+moody+songs`;
 
   grid.innerHTML = `
-    <a class="pl-card" href="${spotifyUrl}" target="_blank">
-      <div class="pl-icon spotify"></div>
+    <a class="pl-card" href="${data.url}" target="_blank">
       <div class="pl-info">
         <div class="pl-platform">Spotify</div>
-        <div class="pl-name">${spotifyName}</div>
-        <div class="pl-desc">${spotifyDesc}</div>
+        <div class="pl-name">${data.name}</div>
       </div>
-      <div class="pl-arrow">→</div>
     </a>
 
     <a class="pl-card" href="${ytSearch}" target="_blank">
