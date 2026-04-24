@@ -1,180 +1,639 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Moodify — AI Music</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Moodify — AI Music Recommender</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-<script defer src="https://unpkg.com/face-api.js"></script>
+    :root {
+      --bg: #080808;
+      --surface: #111111;
+      --surface2: #191919;
+      --border: rgba(255,255,255,0.07);
+      --border-bright: rgba(255,255,255,0.14);
+      --text: #f2f2f2;
+      --muted: #666;
+      --dim: #3a3a3a;
 
-<style>
-body {
-  background: #0a0a0a;
-  color: white;
-  font-family: sans-serif;
-  display: flex;
-  gap: 20px;
-  padding: 20px;
-}
+      --happy:  #f7c948;
+      --sad:    #5b9cf6;
+      --angry:  #f46a6a;
+      --neutral:#a3e6a3;
+      --accent: #f2f2f2;
+    }
 
-.left, .right {
-  flex: 1;
-}
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto 1fr auto;
+    }
 
-video {
-  width: 100%;
-  border-radius: 10px;
-}
+    /* ─── NOISE OVERLAY ─────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+      opacity: 0.025;
+      pointer-events: none;
+    }
 
-button {
-  margin-top: 10px;
-  padding: 10px;
-  width: 100%;
-  background: white;
-  color: black;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-}
+    /* ─── HEADER ─────────────────────────────────────── */
+    header {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.4rem 2.5rem;
+      border-bottom: 1px solid var(--border);
+      position: relative; z-index: 2;
+    }
+    .logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 1.35rem;
+      letter-spacing: -0.02em;
+    }
+    .logo span { color: var(--muted); font-weight: 400; }
+    .status-pill {
+      display: flex; align-items: center; gap: 7px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: 5px 14px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--dim);
+      transition: background 0.4s;
+    }
+    .dot.live { background: #4ade80; box-shadow: 0 0 6px #4ade8088; }
 
-.playlist-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  max-height: 80vh;
-  overflow-y: auto;
-}
+    /* ─── LEFT PANEL ─────────────────────────────────── */
+    .left {
+      position: relative; z-index: 1;
+      padding: 2.5rem;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+    }
 
-iframe {
-  width: 100%;
-  height: 200px;
-  border-radius: 10px;
-  border: none;
-}
-</style>
+    .cam-wrap {
+      width: 100%;
+      aspect-ratio: 1;
+      max-width: 340px;
+      border-radius: 20px;
+      overflow: hidden;
+      border: 1px solid var(--border-bright);
+      background: var(--surface);
+      position: relative;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .cam-wrap video {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover;
+      display: block;
+    }
+    .cam-placeholder {
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+      color: var(--muted); font-size: 0.85rem;
+    }
+    .cam-icon {
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      border: 1px solid var(--border-bright);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .cam-icon svg { width: 22px; height: 22px; stroke: var(--muted); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* scanning line */
+    .scan-line {
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: 0;
+      animation: scan 2.5s ease-in-out infinite;
+    }
+    @keyframes scan {
+      0%   { top: 0%;   opacity: 0; }
+      10%  { opacity: 0.35; }
+      90%  { opacity: 0.35; }
+      100% { top: 100%; opacity: 0; }
+    }
+
+    /* corner brackets */
+    .cam-wrap::before, .cam-wrap::after {
+      content: '';
+      position: absolute;
+      width: 22px; height: 22px;
+      border-color: var(--border-bright);
+      border-style: solid;
+      z-index: 3;
+    }
+    .cam-wrap::before { top: 10px; left: 10px; border-width: 2px 0 0 2px; border-radius: 4px 0 0 0; }
+    .cam-wrap::after  { bottom: 10px; right: 10px; border-width: 0 2px 2px 0; border-radius: 0 0 4px 0; }
+
+    /* mood bar */
+    .mood-bars {
+      width: 100%; max-width: 340px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .bar-row {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .bar-label { width: 52px; text-align: right; }
+    .bar-track {
+      flex: 1; height: 4px;
+      background: var(--surface2);
+      border-radius: 99px; overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%; border-radius: 99px;
+      width: 0%; transition: width 0.3s ease;
+    }
+    .bar-pct { width: 34px; text-align: right; }
+
+    .start-btn {
+      width: 100%; max-width: 340px;
+      padding: 0.9rem;
+      background: var(--text);
+      color: #080808;
+      border: none;
+      border-radius: 12px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.15s;
+    }
+    .start-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+    .start-btn:active { transform: scale(0.98); }
+    .start-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* ─── RIGHT PANEL ────────────────────────────────── */
+    .right {
+      position: relative; z-index: 1;
+      padding: 2.5rem;
+      display: flex; flex-direction: column;
+      gap: 1.5rem;
+      overflow-y: auto;
+    }
+
+    .mood-hero {
+      padding: 2rem;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      display: flex; flex-direction: column; gap: 6px;
+      min-height: 140px;
+      justify-content: center;
+      transition: border-color 0.5s;
+      position: relative; overflow: hidden;
+    }
+    .mood-hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      opacity: 0;
+      transition: opacity 0.6s;
+      pointer-events: none;
+    }
+    .mood-hero.active::before { opacity: 1; }
+
+    .mood-tag {
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .mood-name {
+      font-family: 'Syne', sans-serif;
+      font-size: 3rem;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -0.03em;
+      transition: color 0.5s;
+    }
+    .mood-conf { font-size: 0.85rem; color: var(--muted); margin-top: 4px; }
+
+    /* ─── PLAYLIST CARDS ─────────────────────────────── */
+    .section-label {
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .playlist-grid {
+      display: flex; flex-direction: column; gap: 10px;
+    }
+
+    .pl-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1rem 1.2rem;
+      display: flex; align-items: center; gap: 14px;
+      transition: border-color 0.25s, background 0.25s, transform 0.15s;
+      text-decoration: none; color: inherit;
+      cursor: pointer;
+    }
+    .pl-card:hover { border-color: var(--border-bright); background: var(--surface2); transform: translateX(3px); }
+
+    .pl-icon {
+      width: 42px; height: 42px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      font-size: 1.2rem;
+    }
+    .pl-icon.spotify { background: #1a2e1a; }
+    .pl-icon.youtube { background: #2e1a1a; }
+    .pl-icon svg { width: 20px; height: 20px; }
+
+    .pl-info { flex: 1; min-width: 0; }
+    .pl-platform { font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+    .pl-name { font-weight: 500; font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pl-desc { font-size: 0.78rem; color: var(--muted); margin-top: 1px; }
+
+    .pl-arrow { color: var(--dim); font-size: 1rem; transition: transform 0.2s, color 0.2s; }
+    .pl-card:hover .pl-arrow { transform: translateX(3px); color: var(--muted); }
+
+    .waiting-state {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 10px; color: var(--muted);
+      padding: 3rem 0; font-size: 0.88rem; text-align: center;
+      border: 1px dashed var(--border);
+      border-radius: 14px;
+    }
+    .waiting-state svg { width: 28px; height: 28px; stroke: var(--dim); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* ─── FOOTER ─────────────────────────────────────── */
+    footer {
+      grid-column: 1 / -1;
+      border-top: 1px solid var(--border);
+      padding: 1rem 2.5rem;
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 0.75rem; color: var(--muted);
+      position: relative; z-index: 2;
+    }
+
+    /* ─── MOOD COLOR THEMES ──────────────────────────── */
+    .theme-happy  .mood-name { color: var(--happy); }
+    .theme-happy  .mood-hero { border-color: #f7c94830; }
+    .theme-happy  .mood-hero::before { background: radial-gradient(ellipse at 0% 0%, #f7c94812, transparent 60%); }
+    .theme-happy  .bar-fill.active { background: var(--happy); }
+
+    .theme-sad    .mood-name { color: var(--sad); }
+    .theme-sad    .mood-hero { border-color: #5b9cf630; }
+    .theme-sad    .mood-hero::before { background: radial-gradient(ellipse at 0% 0%, #5b9cf612, transparent 60%); }
+    .theme-sad    .bar-fill.active { background: var(--sad); }
+
+    .theme-angry  .mood-name { color: var(--angry); }
+    .theme-angry  .mood-hero { border-color: #f46a6a30; }
+    .theme-angry  .mood-hero::before { background: radial-gradient(ellipse at 0% 0%, #f46a6a12, transparent 60%); }
+    .theme-angry  .bar-fill.active { background: var(--angry); }
+
+    .theme-neutral .mood-name { color: var(--neutral); }
+    .theme-neutral .mood-hero { border-color: #a3e6a330; }
+    .theme-neutral .mood-hero::before { background: radial-gradient(ellipse at 0% 0%, #a3e6a312, transparent 60%); }
+    .theme-neutral .bar-fill.active { background: var(--neutral); }
+
+    /* ─── RESPONSIVE ─────────────────────────────────── */
+    @media (max-width: 700px) {
+      body { grid-template-columns: 1fr; }
+      .left { border-right: none; border-bottom: 1px solid var(--border); }
+      .mood-name { font-size: 2.2rem; }
+    }
+  </style>
 </head>
-
 <body>
 
-<div class="left">
-  <video id="video" autoplay muted></video>
-  <button onclick="startScan()">Start Detection</button>
-  <button onclick="restartScan()">Re-Scan</button>
-</div>
+  <!-- HEADER -->
+  <header>
+    <div class="logo">Moodify <span>/ AI Music</span></div>
+    <div class="status-pill">
+      <div class="dot" id="status-dot"></div>
+      <span id="status-text">Ready</span>
+    </div>
+  </header>
 
-<div class="right">
-  <h2 id="mood">Mood: —</h2>
-  <div class="playlist-grid" id="videos"></div>
-</div>
+  <!-- LEFT: CAMERA -->
+  <div class="left">
+    <div class="cam-wrap" id="cam-wrap">
+      <div class="scan-line" id="scan-line" style="display:none"></div>
+      <div class="cam-placeholder" id="cam-placeholder">
+        <div class="cam-icon">
+          <svg viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+        </div>
+        <span>Camera preview</span>
+      </div>
+      <div id="webcam-container"></div>
+    </div>
 
-<script>
-let video = document.getElementById("video");
-let emotionHistory = [];
-let currentMood = null;
-let videoPage = 0;
+    <!-- CONFIDENCE BARS -->
+    <div class="mood-bars" id="mood-bars">
+      <div class="bar-row">
+        <span class="bar-label">Happy</span>
+        <div class="bar-track"><div class="bar-fill" id="bar-Happy" style="background:#f7c948"></div></div>
+        <span class="bar-pct" id="pct-Happy">0%</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Sad</span>
+        <div class="bar-track"><div class="bar-fill" id="bar-Sad" style="background:#5b9cf6"></div></div>
+        <span class="bar-pct" id="pct-Sad">0%</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Angry</span>
+        <div class="bar-track"><div class="bar-fill" id="bar-Angry" style="background:#f46a6a"></div></div>
+        <span class="bar-pct" id="pct-Angry">0%</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Neutral</span>
+        <div class="bar-track"><div class="bar-fill" id="bar-Neutral" style="background:#a3e6a3"></div></div>
+        <span class="bar-pct" id="pct-Neutral">0%</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Surprise</span>
+        <div class="bar-track"><div class="bar-fill" id="bar-Surprise"></div></div>
+        <span class="bar-pct" id="pct-Surprise">0%</span>
+      </div>
+    </div>
 
-async function startCamera() {
-  const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-  video.srcObject = stream;
-}
+    <button class="start-btn" id="start-btn" onclick="init()">Start Detection</button>
+  </div>
 
-async function loadModels() {
-  await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
-  await faceapi.nets.faceExpressionNet.loadFromUri('/models');
-}
+  <!-- RIGHT: RESULTS -->
+  <div class="right" id="right-panel">
 
-async function startScan() {
-  emotionHistory = [];
-  document.getElementById("mood").textContent = "Scanning...";
+    <!-- MOOD DISPLAY -->
+    <div class="mood-hero active" id="mood-hero">
+      <div class="mood-tag">Detected mood</div>
+      <div class="mood-name" id="mood-name">—</div>
+      <div class="mood-conf" id="mood-conf">Start the camera to detect your mood</div>
+    </div>
 
-  let startTime = Date.now();
+    <!-- PLAYLISTS -->
+    <div class="section-label">Recommended playlists</div>
 
-  const interval = setInterval(async () => {
-    const detections = await faceapi
-      .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
-      .withFaceExpressions();
+    <div class="playlist-grid" id="playlist-grid">
+      <div class="waiting-state" id="waiting-state">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Playlists will appear once your mood is detected
+      </div>
+    </div>
 
-    if (detections.length > 0) {
-      const exp = detections[0].expressions;
+  </div>
 
-      const mapped = {
-        Happy: exp.happy,
-        Sad: exp.sad,
-        Angry: exp.angry,
-        Neutral: exp.neutral,
-        Surprise: exp.surprised
-      };
+  <!-- FOOTER -->
+  <footer>
+    <span>Powered by face-api.js</span>
+    <span>Moodify — AI Mini Project</span>
+  </footer>
 
-      const mood = Object.keys(mapped).reduce((a, b) =>
-        mapped[a] > mapped[b] ? a : b
-      );
+  <!-- SCRIPTS -->
+  <script defer src="https://unpkg.com/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <script>
+    
 
-      emotionHistory.push(mood);
+    // ══════════════════════════════════════════════════
+    //  PLAYLIST DATA — edit these to change links/names
+    // ══════════════════════════════════════════════════
+
+    const playlists = {
+      Happy: {
+        label: "Happy",
+        theme: "theme-happy",
+        spotify: {
+          name: "Good Vibes Only",
+          desc: "Feel-good hits to keep you smiling",
+          url: "https://open.spotify.com/search/happy%20playlist"
+        },
+        youtube: {
+          name: "Happy Hits 2024",
+          desc: "Top upbeat tracks, curated for joy",
+          url: "https://www.youtube.com/results?search_query=happy+songs+playlist"
+        }
+      },
+      Sad: {
+        label: "Sad",
+        theme: "theme-sad",
+        spotify: {
+          name: "Life is Beautiful",
+          desc: "Emotional melodies for quiet moments",
+          url: "https://open.spotify.com/search/Sad%20playlist"
+        },
+        youtube: {
+          name: "Sad Songs Playlist",
+          desc: "Let it out — songs that understand you",
+          url: "https://www.youtube.com/results?search_query=Sad+songs+playlist"
+        }
+      },
+      Surprise: {
+        label: "Surprise",
+        theme: "theme-happy",
+        spotify: {
+          name: "Unexpected Vibes",
+          desc: "Music for sudden moments 😲",
+          url: "https://open.spotify.com/search/surprise%20playlist"
+        },
+        youtube: {
+          name: "Surprise Energy Mix",
+          desc: "Unpredictable beats & vibes",
+          url: "https://www.youtube.com/results?search_query=Surprise+songs+playlist"
+        }
+      },
+      Angry: {
+        label: "Angry",
+        theme: "theme-angry",
+        spotify: {
+          name: "Beast Mode",
+          desc: "Intense tracks to channel your energy",
+          url: "https://open.spotify.com/search/Angry%20playlist"
+        },
+        youtube: {
+          name: "Workout Motivation",
+          desc: "Turn that fire into fuel",
+          url: "https://www.youtube.com/results?search_query=Angry+songs+playlist"
+        }
+      },
+      Neutral: {
+        label: "Neutral",
+        theme: "theme-neutral",
+        spotify: {
+          name: "Chill Hits",
+          desc: "Easy listening for a calm state of mind",
+          url: "https://open.spotify.com/search/Neutral%20playlist"
+        },
+        youtube: {
+          name: "Lofi Hip Hop Radio",
+          desc: "Background beats to relax or focus",
+          url: "https://www.youtube.com/results?search_query=Neutral+songs+playlist"
+        }
+      }
+    };
+
+    // ══════════════════════════════════════════════════
+    //  APP LOGIC
+    // ══════════════════════════════════════════════════
+    let video;
+    let currentMood = null;
+
+    const MOODS = ["Happy", "Sad", "Angry", "Neutral"];
+
+    async function init() {
+    const btn = document.getElementById("start-btn");
+    btn.disabled = true;
+    btn.textContent = "Loading AI...";
+
+    setStatus("Loading...", false);
+
+      // Create video element
+      video = document.createElement("video");
+      video.width = 340;
+      video.height = 340;
+      video.autoplay = true;
+      video.muted = true;
+
+      try {
+        await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri('./models'),
+        faceapi.nets.faceExpressionNet.loadFromUri('./models')
+      ]);
+
+
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
+
+      document.getElementById("cam-placeholder").style.display = "none";
+      document.getElementById("webcam-container").appendChild(video);
+      document.getElementById("scan-line").style.display = "block";
+
+      btn.style.display = "none";
+      setStatus("Live", true);
+
+      video.addEventListener("play", detectLoop);
+
+
+      } catch (e) {
+        btn.disabled = false;
+        btn.textContent = "Retry";
+      setStatus("Error loading AI", false);
+      }
     }
 
-    if (Date.now() - startTime > 10000) {
-      clearInterval(interval);
-      finalizeMood();
-    }
+      async function detectLoop() {
+        setInterval(async () => {
+        const detections = await faceapi.detectAllFaces(
+          video,
+          new faceapi.TinyFaceDetectorOptions()
+          ).withFaceExpressions();
 
-  }, 500);
-}
+if (detections.length > 0) {
+  const expressions = detections[0].expressions;
 
-function finalizeMood() {
-  let count = {};
+  // Convert to your app labels
+  const mapped = {
+  Happy: expressions.happy,
+  Sad: expressions.sad,
+  Angry: expressions.angry,
+  Neutral: expressions.neutral,
+  Surprise: expressions.surprised
+};
 
-  emotionHistory.forEach(m => {
-    count[m] = (count[m] || 0) + 1;
-  });
-
-  const finalMood = Object.keys(count).reduce((a, b) =>
-    count[a] > count[b] ? a : b
+  const mood = Object.keys(mapped).reduce((a, b) =>
+    mapped[a] > mapped[b] ? a : b
   );
 
-  currentMood = finalMood;
+  const conf = Math.round(mapped[mood] * 100);
 
-  document.getElementById("mood").textContent = "Mood: " + finalMood;
+  // Update bars
+  Object.keys(mapped).forEach(name => {
+    const pct = Math.round(mapped[name] * 100);
+    const fill = document.getElementById("bar-" + name);
+    const pctEl = document.getElementById("pct-" + name);
 
-  renderVideos(finalMood, true);
-}
+    if (fill) {
+      fill.style.width = pct + "%";
+      fill.classList.toggle("active", name === mood);
+    }
+    if (pctEl) pctEl.textContent = pct + "%";
+  });
 
-function renderVideos(mood, reset = true) {
-  const grid = document.getElementById("videos");
+  // Update UI
+  document.getElementById("mood-name").textContent = mood;
+  document.getElementById("mood-conf").textContent = `${conf}% confidence`;
 
-  if (reset) {
-    grid.innerHTML = "";
-    videoPage = 0;
+  const hero = document.getElementById("mood-hero");
+  const panel = document.getElementById("right-panel");
+
+  ["theme-happy","theme-sad","theme-angry","theme-neutral"].forEach(t => {
+    hero.classList.remove(t);
+    panel.classList.remove(t);
+  });
+
+  const theme = playlists[mood]?.theme;
+  if (theme) {
+    hero.classList.add(theme);
+    panel.classList.add(theme);
   }
 
-  const query = mood + " songs";
-
-  for (let i = 0; i < 6; i++) {
-    const iframe = document.createElement("iframe");
-    iframe.src = `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(query)}&index=${i + videoPage * 6}`;
-    grid.appendChild(iframe);
+  if (mood !== currentMood) {
+    currentMood = mood;
+    renderPlaylists(mood);
   }
-
-  videoPage++;
-}
-
-document.getElementById("videos").addEventListener("scroll", () => {
-  const grid = document.getElementById("videos");
-
-  if (grid.scrollTop + grid.clientHeight >= grid.scrollHeight - 20) {
-    if (currentMood) renderVideos(currentMood, false);
   }
-});
+  }, 1000);
+} 
 
-function restartScan() {
-  document.getElementById("videos").innerHTML = "";
-  document.getElementById("mood").textContent = "Mood: —";
-  emotionHistory = [];
-  currentMood = null;
-}
+  function setStatus(text, live) {
+    document.getElementById("status-text").textContent = text;
+    document.getElementById("status-dot").classList.toggle("live", live);
+  }
+  
+  async function getSpotifyPlaylist(mood) {
+      const res = await fetch(`/api/spotify?mood=${mood}`);
+      return await res.json(); 
+  }
+  <!---- ONLY CHANGE IS INSIDE renderPlaylists FUNCTION --->
 
-startCamera();
-loadModels();
+  async function renderPlaylists(mood) {
+    const data = await getSpotifyPlaylist(mood);
+    const grid = document.getElementById("playlist-grid");
+
+    const ytSearch = `https://www.youtube.com/results?search_query=${mood}+songs`;
+
+    grid.innerHTML = `
+      <a class="pl-card" href="${data?.url || '#'}" target="_blank">
+        <div class="pl-info">
+          <div class="pl-platform">Spotify</div>
+          <div class="pl-name">${data?.name || "No playlist found"}</div>
+        </div>
+      </a>
+
+      <a class="pl-card" href="${ytSearch}" target="_blank">
+        <div class="pl-info">
+          <div class="pl-platform">YouTube</div>
+          <div class="pl-name">${mood} Songs</div>
+          <div class="pl-desc">Search results for your mood</div>
+        </div>
+      </a>
+    `;
+  }  
 </script>
-
 </body>
 </html>
