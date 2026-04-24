@@ -469,7 +469,6 @@
 <script>
 // ══════════════════════════════════════════════
 // YOUTUBE VIDEO IDs PER MOOD
-// Replace these with actual video IDs you want!
 // ══════════════════════════════════════════════
 const VIDEOS = {
   Happy: [
@@ -513,6 +512,23 @@ const VIDEOS = {
     { id: "y6120QOlsfU", title: "Sandstorm — Darude", channel: "Darude" },
   ]
 };
+
+// ══════════════════════════════════════════════
+// NEUTRAL FIX — CONFIGURATION
+// ══════════════════════════════════════════════
+
+// How much to dampen Neutral during accumulation.
+// 0.25 means Neutral only contributes 25% of its raw score.
+// Lower = harder to get Neutral. Tune between 0.15–0.35.
+const NEUTRAL_WEIGHT = 0.25;
+
+// Minimum confidence (0–1) any emotion must reach in a single frame
+// before we bother accumulating it. Filters out weak noise.
+const EMOTION_THRESHOLD = 0.15;
+
+// If the top non-Neutral emotion never exceeds this share of total
+// accumulated score, we fall back to Neutral anyway.
+const NEUTRAL_FALLBACK_RATIO = 0.10;
 
 // ══════════════════════════════════════════════
 // STATE
@@ -571,20 +587,16 @@ function beginCountdown() {
   timeLeft = 12;
   moodScores = { Happy: 0, Sad: 0, Angry: 0, Neutral: 0, Surprise: 0 };
 
-  // Show scanning UI
   document.getElementById("waiting-state").style.display = "none";
   document.getElementById("scanning-state").style.display = "flex";
   document.getElementById("video-section").classList.remove("visible");
 
-  // Show timer ring
   const ringWrap = document.getElementById("timer-ring-wrap");
   ringWrap.style.display = "block";
   updateTimerRing(timeLeft, 12);
 
-  // Start face detection loop
   detectInterval = setInterval(runDetection, 800);
 
-  // Start countdown
   timerInterval = setInterval(() => {
     timeLeft--;
     document.getElementById("scan-countdown").textContent = timeLeft;
@@ -607,23 +619,41 @@ async function runDetection() {
 
     if (detections.length > 0) {
       const exp = detections[0].expressions;
-      const mapped = {
-        Happy:   exp.happy   || 0,
-        Sad:     exp.sad     || 0,
-        Angry:   exp.angry   || 0,
-        Neutral: exp.neutral || 0,
-        Surprise:exp.surprised || 0
+
+      const raw = {
+        Happy:   exp.happy    || 0,
+        Sad:     exp.sad      || 0,
+        Angry:   exp.angry    || 0,
+        Neutral: exp.neutral  || 0,
+        Surprise:exp.surprised|| 0
       };
 
-      // Accumulate scores
-      Object.keys(mapped).forEach(k => { moodScores[k] += mapped[k]; });
+      // ── FIX 1: Apply Neutral dampening before accumulation ──
+      // Neutral is multiplied by NEUTRAL_WEIGHT so it can't
+      // drown out genuine emotions across frames.
+      const dampened = {
+        Happy:   raw.Happy,
+        Sad:     raw.Sad,
+        Angry:   raw.Angry,
+        Neutral: raw.Neutral * NEUTRAL_WEIGHT,
+        Surprise:raw.Surprise
+      };
 
-      // Find dominant right now for display
-      const mood = Object.keys(mapped).reduce((a, b) => mapped[a] > mapped[b] ? a : b);
-      const conf = Math.round(mapped[mood] * 100);
+      // ── FIX 2: Only accumulate emotions above the threshold ──
+      // Weak detections (noise) don't pollute the total score.
+      Object.keys(dampened).forEach(k => {
+        if (raw[k] >= EMOTION_THRESHOLD) {
+          moodScores[k] += dampened[k];
+        }
+      });
 
-      updateBars(mapped, mood);
-      updateMoodHero(mood, conf, false);
+      // For live display bars, show raw values (undampened) so bars
+      // still look natural and reflect the real detection.
+      const dominantRaw = Object.keys(raw).reduce((a, b) => raw[a] > raw[b] ? a : b);
+      const confRaw = Math.round(raw[dominantRaw] * 100);
+
+      updateBars(raw, dominantRaw);
+      updateMoodHero(dominantRaw, confRaw, false);
     }
   } catch(e) {}
 }
@@ -637,28 +667,47 @@ function lockMood() {
   scanning = false;
   locked = true;
 
-  // Stop camera
   if (video && video.srcObject) {
     video.srcObject.getTracks().forEach(t => t.stop());
   }
   document.getElementById("scan-line").style.display = "none";
   document.getElementById("timer-ring-wrap").style.display = "none";
 
-  // Determine winner from accumulated scores
-  const finalMood = Object.keys(moodScores).reduce((a, b) => moodScores[a] > moodScores[b] ? a : b);
   const total = Object.values(moodScores).reduce((a, b) => a + b, 0);
+
+  // ── FIX 3: Neutral-as-fallback logic ──
+  // Find the best non-Neutral emotion.
+  const nonNeutralMoods = ["Happy", "Sad", "Angry", "Surprise"];
+  const bestNonNeutral = nonNeutralMoods.reduce((a, b) =>
+    moodScores[a] > moodScores[b] ? a : b
+  );
+  const bestNonNeutralShare = total > 0 ? moodScores[bestNonNeutral] / total : 0;
+
+  // Only use Neutral if no other emotion is strong enough to claim the win.
+  // Otherwise pick the top non-Neutral emotion.
+  let finalMood;
+  if (bestNonNeutralShare >= NEUTRAL_FALLBACK_RATIO) {
+    // A real emotion was detected — find overall winner (Neutral
+    // is already dampened so it should lose fairly)
+    finalMood = Object.keys(moodScores).reduce((a, b) =>
+      moodScores[a] > moodScores[b] ? a : b
+    );
+    // Safety: if winner is still Neutral despite dampening, use bestNonNeutral
+    if (finalMood === "Neutral") finalMood = bestNonNeutral;
+  } else {
+    // Face was totally blank the whole scan — Neutral is correct
+    finalMood = "Neutral";
+  }
+
   const conf = total > 0 ? Math.round((moodScores[finalMood] / total) * 100) : 0;
 
-  // Update UI
   updateMoodHero(finalMood, conf, true);
   document.getElementById("locked-badge").style.display = "block";
   setStatus("Locked: " + finalMood, false);
   document.getElementById("status-dot").classList.add("locked");
 
-  // Show rescan
   document.getElementById("rescan-btn").style.display = "block";
 
-  // Hide scanning state, show videos
   document.getElementById("scanning-state").style.display = "none";
   renderVideos(finalMood);
 }
@@ -669,7 +718,6 @@ function lockMood() {
 function rescan() {
   locked = false;
 
-  // Reset UI
   document.getElementById("locked-badge").style.display = "none";
   document.getElementById("rescan-btn").style.display = "none";
   document.getElementById("video-section").classList.remove("visible");
@@ -678,7 +726,6 @@ function rescan() {
   document.getElementById("mood-name").textContent = "—";
   document.getElementById("mood-conf").textContent = "Scanning…";
 
-  // Reset bars
   ["Happy","Sad","Angry","Neutral","Surprise"].forEach(m => {
     const f = document.getElementById("bar-" + m);
     const p = document.getElementById("pct-" + m);
@@ -686,14 +733,12 @@ function rescan() {
     if (p) p.textContent = "0%";
   });
 
-  // Remove theme
   const panel = document.getElementById("right-panel");
   const hero = document.getElementById("mood-hero");
   ["theme-happy","theme-sad","theme-angry","theme-neutral","theme-surprise"].forEach(t => {
     panel.classList.remove(t); hero.classList.remove(t);
   });
 
-  // Rebuild video element
   const container = document.getElementById("webcam-container");
   container.innerHTML = "";
 
@@ -711,7 +756,6 @@ function renderVideos(mood) {
   const moodEmoji = { Happy:"😄", Sad:"😢", Angry:"😤", Neutral:"😐", Surprise:"😲" };
   label.textContent = `${moodEmoji[mood] || ""} ${mood} Vibes — Watch & Enjoy`;
 
-  // Show skeletons first
   grid.innerHTML = Array(6).fill(0).map(() => `
     <div class="yt-skeleton">
       <div class="skel-thumb"></div>
@@ -722,7 +766,6 @@ function renderVideos(mood) {
 
   section.classList.add("visible");
 
-  // Replace with real cards after short delay (feels like loading)
   setTimeout(() => {
     const vids = VIDEOS[mood] || VIDEOS["Neutral"];
     grid.innerHTML = vids.map(v => `
@@ -779,7 +822,7 @@ function updateMoodHero(mood, conf, isFinal) {
 
 function updateTimerRing(current, total) {
   const arc = document.getElementById("timer-arc");
-  const circumference = 113; // 2π×18
+  const circumference = 113;
   const progress = current / total;
   arc.style.strokeDashoffset = circumference * (1 - progress);
   document.getElementById("timer-num").textContent = current;
